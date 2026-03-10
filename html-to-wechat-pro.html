@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>微信排版工具 Pro</title>
+
+    <!-- CodeMirror -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/markdown/markdown.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/selection/active-line.min.js"></script>
+
+    <!-- Marked.js -->
+    <script src="https://cdn.bootcdn.net/ajax/libs/marked/9.1.2/marked.min.js"></script>
+
+    <!-- MathJax -->
+    <script>
+        window.MathJax = {
+            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+            svg: { fontCache: 'global' },
+            options: { enableMenu: false }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+    <!-- Turndown.js for HTML to Markdown parsing -->
+    <script src="https://unpkg.com/turndown/dist/turndown.js"></script>
+
+    <style>
+        :root {
+            --app-primary: #6366f1;
+            --app-bg: #f3f4f6;
+            --app-panel: #fff;
+            --app-border: #e5e7eb;
+            --app-text: #1f2937;
+            --app-muted: #9ca3af;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: var(--app-bg);
+            color: var(--app-text);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ===== Header ===== */
+        .app-header {
+            height: 50px;
+            background: #fff;
+            border-bottom: 1px solid var(--app-border);
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+            justify-content: space-between;
+        }
+
+        .app-header h1 {
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+        }
+
+        .app-header h1 span {
+            font-size: 11px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: #fff;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 8px;
+            text-transform: uppercase;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn {
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            border: 1px solid var(--app-border);
+            background: #fff;
+            color: var(--app-text);
+            transition: .2s;
+        }
+
+        .btn:hover {
+            background: #f9fafb;
+            border-color: #d1d5db;
+        }
+
+        .btn-primary {
+            background: var(--app-primary);
+            color: #fff;
+            border-color: var(--app-primary);
+        }
+
+        .btn-success {
+            background: #07c160;
+            color: #fff;
+            border-color: #07c160;
+        }
+
+        /* ===== Gallery View ===== */
+        #galleryView {
+            height: calc(100vh - 50px);
+            overflow-y: auto;
+            padding: 30px;
+        }
+
+        .gallery-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .gallery-header h2 {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        .gallery-header p {
+            color: var(--app-muted);
+            font-size: 14px;
+        }
+
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 20px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .template-card {
+            background: #fff;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: .3s;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, .06);
+        }
+
+        .template-card:hover {
+            border-color: var(--app-primary);
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, .1);
+        }
+
+        .template-preview-wrap {
+            width: 100%;
+            height: 280px;
+            overflow: hidden;
+            position: relative;
+            background: #f9fafb;
+        }
+
+        .template-preview-wrap iframe {
+            width: 375px;
+            height: 600px;
+            border: none;
+            transform: scale(0.68);
+            transform-origin: top left;
+            pointer-events: none;
+        }
+
+        .template-footer {
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-top: 1px solid var(--app-border);
+        }
+
+        .template-name {
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .btn-use {
+            padding: 5px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            border: 1px solid var(--app-primary);
+            color: var(--app-primary);
+            background: #fff;
+            transition: .2s;
+        }
+
+        /* ===== Editor View ===== */
+        #editorView {
+            display: none;
+            height: calc(100vh - 50px);
+        }
+
+        .editor-main {
+            display: flex;
+            height: 100%;
+            padding: 12px;
+            gap: 12px;
+        }
+
+        .panel-left {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #fff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, .06);
+        }
+
+        .editor-container {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .CodeMirror {
+            height: 100% !important;
+            font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .cm-s-default .cm-header {
+            color: var(--app-primary);
+            font-weight: bold;
+        }
+
+        .cm-s-default .cm-link {
+            color: #0ea5e9;
+            text-decoration: none;
+        }
+
+        .cm-s-default .cm-variable-2 {
+            color: #f59e0b;
+        }
+
+        .cm-s-default .cm-quote {
+            color: #10b981;
+        }
+
+        .editor-toolbar {
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--app-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 13px;
+            color: var(--app-muted);
+            background: #f9fafb;
+        }
+
+        .toolbar-group {
+            display: flex;
+            gap: 4px;
+        }
+
+        .toolbar-btn {
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            cursor: pointer;
+            color: var(--app-text);
+            border: 1px solid transparent;
+            background: none;
+        }
+
+        .toolbar-btn:hover {
+            background: #e5e7eb;
+        }
+
+        .editor-toolbar .tpl-badge {
+            background: #fff;
+            border: 1px solid var(--app-border);
+            padding: 3px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: var(--app-text);
+            font-weight: 500;
+        }
+
+        .panel-center {
+            width: 415px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .mobile-frame {
+            width: 375px;
+            height: 667px;
+            background: #fff;
+            border-radius: 40px;
+            border: 12px solid #333;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, .15);
+        }
+
+        .mobile-notch {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 25px;
+            background: #333;
+            border-radius: 0 0 16px 16px;
+            z-index: 10;
+        }
+
+        .mobile-frame iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: #fff;
+        }
+
+        .panel-right {
+            width: 240px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .card {
+            background: #fff;
+            padding: 14px;
+            border-radius: 8px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, .06);
+        }
+
+        .card-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--app-muted);
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            padding: 4px 0;
+            color: #6b7280;
+        }
+
+        .stat-row span:last-child {
+            font-weight: 500;
+            color: var(--app-text);
+        }
+
+        /* ===== Toast ===== */
+        .toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-80px);
+            background: #333;
+            color: #fff;
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: .3s;
+            z-index: 999;
+            opacity: 0;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- App Header -->
+    <div class="app-header">
+        <h1>🎨 微信排版工具 <span>PRO V5.0</span></h1>
+        <div class="header-actions" id="editorActions" style="display:none">
+            <input type="file" id="htmlImportInput" accept=".html,text/html" style="display:none"
+                onchange="handleHtmlImport(event)">
+            <button class="btn" onclick="document.getElementById('htmlImportInput').click()">📄 导入 HTML</button>
+            <button class="btn" onclick="showGallery()">← 换模板</button>
+            <button class="btn btn-success" onclick="copyResult()">📋 复制到微信</button>
+        </div>
+    </div>
+
+    <!-- Gallery View -->
+    <div id="galleryView">
+        <div class="gallery-header">
+            <h2>选择排版模板</h2>
+            <p>专业级多主题支持，融合 Markdown 与高级视觉体验</p>
+        </div>
+        <div class="gallery-grid" id="galleryGrid"></div>
+    </div>
+
+    <!-- Editor View -->
+    <div id="editorView">
+        <div class="editor-main">
+            <div class="panel-left">
+                <div class="editor-toolbar">
+                    <div class="toolbar-group">
+                        <button class="toolbar-btn" title="加粗" onclick="Editor.insert('**', '**')"><b>B</b></button>
+                        <button class="toolbar-btn" title="斜体" onclick="Editor.insert('*', '*')"><i>I</i></button>
+                        <button class="toolbar-btn" title="删除线" onclick="Editor.insert('~~', '~~')"><s>S</s></button>
+                    </div>
+                    <div class="toolbar-group">
+                        <button class="toolbar-btn" title="标题 1" onclick="Editor.insert('# ', '')">H1</button>
+                        <button class="toolbar-btn" title="标题 2" onclick="Editor.insert('## ', '')">H2</button>
+                        <button class="toolbar-btn" title="标题 3" onclick="Editor.insert('### ', '')">H3</button>
+                    </div>
+                    <div class="toolbar-group">
+                        <button class="toolbar-btn" title="引用" onclick="Editor.insert('> ', '')">“</button>
+                        <button class="toolbar-btn" title="代码块"
+                            onclick="Editor.insert('```\n', '\n```')">&lt;&gt;</button>
+                        <button class="toolbar-btn" title="链接" onclick="Editor.insert('[', '](url)')">🔗</button>
+                        <button class="toolbar-btn" title="公式" onclick="Editor.insert('$$ ', ' $$')">∫</button>
+                    </div>
+                    <span class="tpl-badge" id="currentTplName"></span>
+                </div>
+                <div class="editor-container">
+                    <textarea id="markdownInput"></textarea>
+                </div>
+            </div>
+
+            <div class="panel-center">
+                <div class="mobile-frame">
+                    <div class="mobile-notch"></div>
+                    <iframe id="previewFrame"></iframe>
+                </div>
+            </div>
+
+            <div class="panel-right">
+                <div class="card">
+                    <button class="btn btn-success"
+                        style="width:100%;padding:10px;font-size:15px;display:flex;justify-content:center;gap:6px;align-items:center"
+                        onclick="copyResult()">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3">
+                            </path>
+                        </svg>
+                        复制结果
+                    </button>
+                </div>
+                <div class="card">
+                    <div class="card-title">📊 统计</div>
+                    <div class="stat-row"><span>字数</span><span id="stat_chars">0</span></div>
+                    <div class="stat-row"><span>时长</span><span id="stat_readtime">0m</span></div>
+                    <div class="stat-row"><span>组件</span><span id="stat_comps">0</span></div>
+                </div>
+                <div class="card">
+                    <div class="card-title">💡 专业功能</div>
+                    <div style="font-size:12px;color:#6b7280;line-height:1.6">
+                        <p>✨ <strong>公式</strong>: <code>$$ E=mc^2 $$</code></p>
+                        <p>🍎 <strong>代码</strong>: 自动Mac风格红绿灯</p>
+                        <p>📖 <strong>高级框</strong>: <code>> [!tip] 标题</code></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const TEMPLATES = {
+            'warm-earth': {
+                name: '田园暖色', icon: '🌾', desc: '暖米色棕色搭配，适合自然/生活', legacy: false,
+                css: `
+:root{--earth-brown:#5D4037;--wheat-gold:#D4A574;--field-green:#4A6741;--warm-beige:#F5F1E8;--deep-green:#2C5F2D;--rust-orange:#B85450}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,'PingFang SC',sans-serif;background:#fff;line-height:1.8;color:#333}
+.container{max-width:680px;margin:0 auto;background:#fff}
+.intro-section{background:linear-gradient(to bottom,#fff,#faf8f3);padding:30px 20px;border-bottom:1px solid #e8e0d0}
+.intro-box{background:var(--warm-beige);border-left:4px solid var(--wheat-gold);padding:20px;border-radius:0 12px 12px 0;position:relative}
+.intro-label{display:inline-block;background:var(--earth-brown);color:#fff;padding:4px 12px;border-radius:4px;font-size:12px;font-weight:600;margin-bottom:15px}
+.intro-text{font-size:15px;color:#555;line-height:1.9;text-align:justify}
+.content-section{padding:0 20px 30px}
+.section-header{margin:40px 0 20px;border-bottom:2px solid var(--wheat-gold);padding-bottom:10px}
+.section-title{font-size:20px;font-weight:700;color:var(--earth-brown);margin:0}
+.subsection-title{font-size:18px;font-weight:600;color:var(--deep-green);margin:30px 0 15px;padding-bottom:8px;border-bottom:2px solid var(--wheat-gold);display:inline-block}
+.paragraph{font-size:16px;color:#444;margin-bottom:20px;text-align:justify;text-indent:2em}
+.highlight-box{background:linear-gradient(135deg,#f8f4e8,#f0ebe0);border:1px solid #e0d5c5;border-radius:12px;padding:25px;margin:25px 0;}
+.highlight-title{font-weight:600;color:var(--earth-brown);margin-bottom:12px;}
+.quote-block{background:#f9f9f9;border-left:4px solid var(--field-green);padding:20px 25px;margin:25px 0;font-style:italic;color:#555}
+.custom-list{list-style:none;padding:0;margin:20px 0}
+.custom-list li{padding:12px 0 12px 30px;position:relative;border-bottom:1px dashed #e0d5c5}
+.custom-list li::before{content:'🌾';position:absolute;left:0;font-size:16px}
+strong{color:var(--earth-brown);background:linear-gradient(to bottom,transparent 60%,rgba(212,165,116,.2) 60%)}
+                `,
+                preview: `<div class="container"><section class="intro-section"><div class="intro-box"><div class="intro-label">导读</div><p class="intro-text">田园暖色风格排版。</p></div></section><section class="content-section"><div class="section-header"><h2 class="section-title">章节标题</h2></div><p class="paragraph">正文排版体验。<strong>加粗</strong>亮色。</p></section></div>`
+            },
+            'lapis': {
+                name: '经典海洋', icon: '💎', desc: '科技蓝极简配色', legacy: true,
+                css: `
+:root { --primary: #4870ac; --bg: #fff; --text: #40464f; --accent: #a2b6d4; --block-bg: #f6f8fa; }
+body { font-family: -apple-system, sans-serif; line-height: 1.75; color: var(--text); padding: 20px; }
+h1, h2, h3 { color: var(--primary); margin: 1.2em 0 0.6em; padding: 0; font-weight: bold; }
+h1 { text-align: center; font-size: 1.6em; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+h2 { font-size: 1.3em; display: inline-block; background: var(--primary); color: #fff; padding: 4px 12px; border-radius: 4px; }
+h3 { font-size: 1.1em; border-left: 4px solid var(--primary); padding-left: 10px; }
+p { margin: 1em 0; text-align: justify; }
+strong { color: var(--primary); font-weight: bold; }
+blockquote { border-left: 4px solid var(--primary); background: var(--block-bg); padding: 10px 16px; color: #555; margin: 1.5em 0; border-radius: 0 4px 4px 0; }
+a { color: var(--primary); text-decoration: none; border-bottom: 1px dashed var(--primary); }
+ul, ol { padding-left: 20px; color: var(--text); }
+li { margin: 8px 0; }
+hr { border: none; height: 1px; background: var(--accent); margin: 2em 0; }
+img { max-width: 100%; border-radius: 6px; display: block; margin: 1em auto; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+                `,
+                preview: `<div class="container"><h2>海洋主题</h2><h3>功能点</h3><p>完美的蓝调风格，支持<strong>MathJax</strong>等高级特性。</p><blockquote>引用样式</blockquote></div>`
+            },
+            'minimal-bw': {
+                name: '极简黑白', icon: '⬛', desc: '纯黑白，技术/分析类必备', legacy: false,
+                css: `
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,-apple-system,sans-serif;line-height:1.7;color:#222;background:#fff;padding:20px;}
+.container{max-width:680px;margin:0 auto;background:#fff}
+.intro-section{padding:10px 0;border-bottom:2px solid #111}
+.intro-box{padding:20px;font-style:italic}
+.intro-label{display:inline-block;background:#111;color:#fff;padding:2px 10px;font-size:12px;letter-spacing:2px;margin-bottom:12px}
+.section-header{margin:40px 0 20px;border-bottom:2px solid #111;padding-bottom:10px}
+.section-title{font-size:22px;font-weight:700}
+.subsection-title{font-size:18px;font-weight:700;margin:25px 0 10px}
+.paragraph{font-size:16px;color:#333;margin-bottom:20px;text-align:justify;text-indent:2em}
+.highlight-box{background:#f5f5f5;padding:20px;margin:20px 0;border-left:3px solid #111}
+.custom-list{list-style:none;padding:0;margin:20px 0}
+.custom-list li{padding:8px 0 8px 20px;position:relative;border-bottom:1px dashed #ddd}
+.custom-list li::before{content:'▸';position:absolute;left:0;font-weight:900}
+strong{font-weight:900}
+                `,
+                preview: `<div class="container"><section class="intro-section"><div class="intro-box"><div class="intro-label">导读</div><p class="paragraph">极简黑白风格，适合技术分享。</p></div></section></div>`
+            },
+            'pie': {
+                name: '橙彩小调', icon: '🥧', desc: '温暖桔色排版', legacy: true,
+                css: `
+:root { --primary: #ff502c; --bg: #fff; --text: #333; --accent: #f8f8f8; }
+body { font-family: -apple-system, sans-serif; line-height: 1.8; color: var(--text); padding: 20px; }
+h1 { font-size: 1.8em; text-align: center; color: var(--text); margin-bottom: 1em; }
+h2 { font-size: 1.4em; border-bottom: 2px solid var(--primary); padding-bottom: 8px; margin-top: 1.5em; color: var(--text); }
+h3 { font-size: 1.2em; margin-top: 1.2em; color: var(--primary); display: flex; align-items: center; }
+h3::before { content: ''; display: inline-block; width: 6px; height: 6px; background: var(--primary); border-radius: 50%; margin-right: 8px; }
+p { margin: 1em 0; color: #444; }
+strong { color: var(--primary); background: rgba(255, 80, 44, 0.1); padding: 0 4px; border-radius: 2px; }
+blockquote { background: var(--accent); padding: 16px; border-left: 4px solid var(--primary); color: #666; margin: 1.5em 0; position: relative; }
+                `,
+                preview: `<div class="container"><h2>橙彩标题</h2><p>柔和<strong>色彩</strong>点缀您的文字。</p></div>`
+            }
+        };
+
+        // Engine v5 Logic ported to ES6
+        class TemplateEngine {
+            constructor(tplId) {
+                this.tpl = TEMPLATES[tplId];
+                this.sectionIndex = 0;
+                this.componentCount = 0;
+            }
+            render(markdown) {
+                this.sectionIndex = 0; this.componentCount = 0;
+                const tokens = marked.lexer(markdown);
+                let introHtml = ''; let endingHtml = ''; const contentTokens = [];
+                for (const token of tokens) {
+                    if (token.type === 'blockquote') {
+                        const txt = this.bqText(token);
+                        if (txt.includes('[!intro]')) { introHtml = this.renderIntro(txt); continue; }
+                        if (txt.includes('[!ending]')) { endingHtml = this.renderEnding(txt); continue; }
+                    }
+                    contentTokens.push(token);
+                }
+                const contentHtml = this.processTokens(contentTokens);
+                return `<div class="container">${introHtml}<section class="content-section">${contentHtml}</section>${endingHtml}</div>`;
+            }
+            processTokens(tokens) {
+                let html = '';
+                for (let i = 0; i < tokens.length; i++) {
+                    const t = tokens[i];
+                    if (t.type === 'heading' && t.depth === 1) {
+                        this.componentCount++;
+                        html += `<div class="section-header"><h2 class="section-title">${this.inline(t)}</h2></div>`;
+                    } else if (t.type === 'heading' && t.depth === 2) {
+                        this.componentCount++;
+                        html += `<h3 class="subsection-title">${this.inline(t)}</h3>`;
+                    } else if (t.type === 'heading') {
+                        html += `<h${t.depth + 1}>${this.inline(t)}</h${t.depth + 1}>`;
+                    } else if (t.type === 'paragraph') {
+                        html += `<p class="paragraph">${this.inline(t)}</p>`;
+                    } else if (t.type === 'blockquote') {
+                        this.componentCount++; html += this.renderBlockquote(t);
+                    } else if (t.type === 'list') {
+                        this.componentCount++; html += this.renderList(t);
+                    } else if (t.type === 'code') {
+                        this.componentCount++; html += `<pre><code>${t.text.replace(/</g, '&lt;')}</code></pre>`;
+                    } else {
+                        html += marked.parse(t.raw);
+                    }
+                }
+                return html;
+            }
+            inline(token) { return marked.parseInline(token.text || ''); }
+            bqText(token) { return token.tokens ? token.tokens.map(t => t.text || t.raw || '').join('\n') : (token.text || ''); }
+            renderIntro(text) {
+                this.componentCount++;
+                return `<section class="intro-section"><div class="intro-box"><div class="intro-label">导读</div><p class="intro-text">${marked.parseInline(text.replace('[!intro]', '').trim())}</p></div></section>`;
+            }
+            renderEnding(text) { return `<section class="ending-section"><p>${marked.parseInline(text.replace('[!ending]', '').trim())}</p></section>`; }
+            renderBlockquote(token) {
+                const text = this.bqText(token);
+                if (text.includes('[!tip]')) {
+                    const body = text.replace('[!tip]', '').trim();
+                    return `<div class="highlight-box"><div class="highlight-content">${marked.parseInline(body)}</div></div>`;
+                }
+                return `<div class="quote-block">${marked.parseInline(text)}</div>`;
+            }
+            renderList(token) {
+                const items = (token.items || []).map(item => `<li>${marked.parseInline(item.text || '')}</li>`).join('');
+                return `<ul class="custom-list">${items}</ul>`;
+            }
+        }
+
+        class ConvertEngine {
+            process(html) {
+                const doc = new DOMParser().parseFromString(html, 'text/html');
+                let cssText = '';
+                doc.querySelectorAll('style').forEach(s => { cssText += s.textContent + '\n'; s.remove(); });
+                const vars = {};
+                cssText.replace(/--([\w-]+)\s*:\s*([^;]+)/g, (_, n, v) => { vars['--' + n] = v.trim(); });
+                for (let pass = 0; pass < 3; pass++) cssText = cssText.replace(/var\(--([\w-]+)\)/g, (_, n) => vars['--' + n] || '');
+                const pseudoBefore = {};
+                cssText.replace(/([^{}]+?)::before\s*\{([^}]+)\}/g, (_, sel, props) => {
+                    const cm = props.match(/content\s*:\s*['"]([^'"]*)['"]/);
+                    if (cm) pseudoBefore[sel.trim()] = cm[1];
+                });
+                const rules = [];
+                const bodyRules = [];
+                cssText.replace(/([^{}@]+)\{([^{}]+)\}/g, (_, sel, props) => {
+                    const s = sel.trim();
+                    if (!s || s === '*' || s.startsWith(':root') || s.includes('::') || s.includes(':hover') || s.includes('@')) return;
+                    if (s === 'body') { bodyRules.push(props.trim()); return; }
+                    s.split(',').forEach(x => { if (x.trim()) rules.push({ selector: x.trim(), properties: props.trim() }); });
+                });
+
+                const container = doc.querySelector('.container');
+                if (container && bodyRules.length) {
+                    const base = bodyRules.join(';');
+                    container.setAttribute('style', base + ';' + (container.getAttribute('style') || ''));
+                }
+
+                rules.forEach(({ selector, properties }) => {
+                    try { doc.querySelectorAll(selector).forEach(el => el.setAttribute('style', (el.getAttribute('style') || '') + ';' + properties)); } catch (e) { }
+                });
+                for (const [sel, content] of Object.entries(pseudoBefore)) {
+                    if (!content) continue;
+                    try {
+                        doc.querySelectorAll(sel).forEach(el => {
+                            const span = doc.createElement('span'); span.textContent = content + ' '; span.setAttribute('style', 'margin-right:6px'); el.insertBefore(span, el.firstChild);
+                        });
+                    } catch (e) { }
+                }
+
+                // Grid Polyfill
+                doc.querySelectorAll('.data-grid').forEach(grid => {
+                    const children = Array.from(grid.children);
+                    const n = children.length;
+                    if (n === 0) return;
+                    const table = doc.createElement('table');
+                    const cellWidth = Math.floor(100 / n);
+                    table.setAttribute('style', 'width:100%;border-collapse:separate;border-spacing:10px;margin:25px 0');
+                    const tr = doc.createElement('tr');
+                    children.forEach(child => {
+                        const td = doc.createElement('td');
+                        td.innerHTML = child.innerHTML;
+                        const childStyle = (child.getAttribute('style') || '').replace(/flex[^;]*/g, '').replace(/min-width[^;]*/g, '');
+                        td.setAttribute('style', childStyle + `;width:${cellWidth}%;vertical-align:top`);
+                        tr.appendChild(td);
+                    });
+                    table.appendChild(tr);
+                    grid.parentNode.replaceChild(table, grid);
+                });
+
+                // No more absolute positioning fix needed because headers are unified to standard flex/block flow
+
+                // Polyfill Mac dots for pre inside copied code!
+                doc.querySelectorAll('pre').forEach(node => {
+                    if (!node.querySelector('.mac-dots')) {
+                        const dots = doc.createElement('div');
+                        dots.className = 'mac-dots';
+                        dots.style.cssText = "position:absolute;top:12px;left:12px;width:12px;height:12px;border-radius:50%;background:#ff5f56;box-shadow:20px 0 #ffbd2e, 40px 0 #27c93f;z-index:9";
+                        node.insertBefore(dots, node.firstChild);
+                        node.style.position = 'relative';
+                        node.style.paddingTop = '40px';
+                        node.style.background = '#282c34';
+                        node.style.color = '#abb2bf';
+                        node.style.borderRadius = '8px';
+                        node.style.padding = '40px 15px 15px 15px';
+                    }
+                });
+                return doc.body.innerHTML;
+            }
+        }
+
+        // ====== App Init ======
+        let currentTplId = null;
+        const frame = document.getElementById('previewFrame');
+
+        function initGallery() {
+            const grid = document.getElementById('galleryGrid');
+            for (const [id, tpl] of Object.entries(TEMPLATES)) {
+                const card = document.createElement('div');
+                card.className = 'template-card';
+                card.onclick = () => useTemplate(id);
+                card.innerHTML = `
+                <div class="template-preview-wrap">
+                    <iframe scrolling="no" frameborder="0"></iframe>
+                </div>
+                <div class="template-footer">
+                    <span class="template-name">${tpl.icon} ${tpl.name}</span>
+                    <button class="btn-use">使 用</button>
+                </div>`;
+                card.querySelector('iframe').srcdoc = `<!DOCTYPE html><html><head><style>${tpl.css}</style></head><body>${tpl.preview}</body></html>`;
+                grid.appendChild(card);
+            }
+        }
+
+        function useTemplate(tplId) {
+            currentTplId = tplId;
+            const tpl = TEMPLATES[tplId];
+            document.getElementById('currentTplName').textContent = tpl.icon + ' ' + tpl.name;
+            document.getElementById('galleryView').style.display = 'none';
+            document.getElementById('editorView').style.display = 'block';
+            document.getElementById('editorActions').style.display = 'flex';
+
+            if (!window.Editor) {
+                window.Editor = CodeMirror.fromTextArea(document.getElementById("markdownInput"), {
+                    mode: "markdown", theme: "default", lineNumbers: true, lineWrapping: true,
+                    styleActiveLine: true, autoCloseBrackets: true
+                });
+                window.Editor.setValue(localStorage.getItem('wechat_pro_content') || `# 欢迎来到微信排版工具 PRO
+
+> [!intro]
+> 本工具完美融合了 V5 优美的排版主题与 PRO 强悍的代码、公式能力。
+
+## 数学公式
+完美兼容微信支持的 SVG 公式：$$ E = mc^2 $$ 
+
+## 代码块支持
+自动适配 Mac 风格：
+\`\`\`js
+function sayHello() {
+  console.log("Hello, PRO!");
+}
+\`\`\`
+
+> [!tip] 核心特性
+> 一键排版，纯本地化存储！` );
+                window.Editor.on("change", () => { updatePreview(); localStorage.setItem('wechat_pro_content', Editor.getValue()); });
+                window.Editor.insert = function (start, end) {
+                    const doc = this.getDoc(); const cursor = doc.getCursor(); const selection = doc.getSelection();
+                    doc.replaceSelection(start + selection + end);
+                    if (!selection) doc.setCursor({ line: cursor.line, ch: cursor.ch + start.length });
+                    this.focus();
+                };
+            }
+            updatePreview();
+            setTimeout(updatePreview, 1000); // 1s second delay to wait for MathJax layout if needed
+        }
+
+        function showGallery() {
+            document.getElementById('galleryView').style.display = 'block';
+            document.getElementById('editorView').style.display = 'none';
+            document.getElementById('editorActions').style.display = 'none';
+        }
+
+        function updatePreview() {
+            if (!currentTplId) return;
+            if (!window.Editor) return;
+            const t0 = performance.now();
+            const tpl = TEMPLATES[currentTplId];
+            const md = window.Editor.getValue();
+            let html, comps;
+
+            if (tpl.legacy) {
+                html = marked.parse(md); comps = (md.match(/\n\n/g) || []).length + 1;
+                html = `<div class="container" id="content">${html}</div>`;
+            } else {
+                const engine = new TemplateEngine(currentTplId);
+                html = engine.render(md); comps = engine.componentCount;
+            }
+
+            const doc = frame.contentDocument;
+            doc.open();
+            doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+            <style>${tpl.css} img{max-width:100%} 
+            pre{background:#282c34;color:#abb2bf;border-radius:8px;padding:40px 15px 15px 15px;position:relative;margin:20px 0;font-family:monospace;overflow-x:auto;}
+            pre::before{content:"";position:absolute;top:12px;left:12px;width:12px;height:12px;border-radius:50%;background:#ff5f56;box-shadow:20px 0 #ffbd2e, 40px 0 #27c93f;}
+            code{font-family:monospace;}
+            </style>
+            <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"><\/script>
+            <script>
+                window.MathJax = {
+                    tex: { inlineMath: [['$','$'], ['\\\\(','\\\\)']], displayMath: [['$$','$$']] },
+                    svg: { fontCache: 'global' },
+                    startup: { ready: () => MathJax.startup.defaultReady() }
+                };
+            <\/script>
+            </head><body><div id="copy-root">${html}</div></body></html>`);
+            doc.close();
+
+            const ms = Math.round(performance.now() - t0);
+            document.getElementById('stat_readtime').textContent = Math.ceil(md.length / 500) + 'm';
+            document.getElementById('stat_chars').textContent = md.replace(/\s/g, '').length;
+            document.getElementById('stat_comps').textContent = comps;
+        }
+
+        function copyResult() {
+            try {
+                // Generate fresh fully static HTML
+                const doc = frame.contentDocument;
+                // Grab outerHTML so ConvertEngine can detect both custom <style> from theme and <style> from MathJax in <head>
+                const root = doc.documentElement.outerHTML;
+
+                const converter = new ConvertEngine();
+                const finalHtml = converter.process(root);
+
+                const blob = new Blob([finalHtml], { type: 'text/html' });
+                const item = new ClipboardItem({ 'text/html': blob });
+                navigator.clipboard.write([item]).then(() => showToast('✅ 完美复制！请去公众号粘贴'));
+            } catch (e) {
+                console.error(e);
+                // Fallback copying for browsers not fully supporting Clipboard API
+                try {
+                    const finalDiv = document.createElement('div');
+                    finalDiv.style.position = 'absolute';
+                    finalDiv.style.left = '-9999px';
+
+                    const doc2 = frame.contentDocument;
+                    const converter = new ConvertEngine();
+                    finalDiv.innerHTML = converter.process(doc2.documentElement.outerHTML);
+
+                    document.body.appendChild(finalDiv);
+                    const range = document.createRange();
+                    range.selectNodeContents(finalDiv);
+                    const sel = window.getSelection();
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                    document.execCommand('copy');
+                    document.body.removeChild(finalDiv);
+                    sel.removeAllRanges();
+                    showToast('✅ 完美复制！请去公众号粘贴');
+                } catch (err2) {
+                    showToast('❌ 复制失败');
+                }
+            }
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg; t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 2000);
+        }
+
+        window.addEventListener('DOMContentLoaded', initGallery);
+    </script>
+</body>
+
+</html>
